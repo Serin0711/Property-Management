@@ -20,16 +20,15 @@ class PropertyDetailsSchema(BaseModel):
     type_of_property: str
     ad_category: str  # Rent, Resale, PG/Hostel, and Flatmates
     BHK_type: str
-    floor: str
-    total_floor: str
+    floor: Optional[str] = ''
+    total_floor: Optional[str] = ''
     property_age: str
     facing: str
-    total_area: Optional[str] = None
+    total_area: Optional[str] = ''
     # other Fields in resale
     apartment_name: str
-    ownership_type: str
+    # ownership_type: str
     # carpet_area: str
-    floor_type: str
 
 
 class LocalityDetails(BaseModel):
@@ -41,26 +40,26 @@ class LocalityDetails(BaseModel):
 
 class RentalDetails(BaseModel):
     # rental details
-    rental_type: str
-    expected_rent: str
-    expected_deposit: str = None
+    # rental_type: str
     expected_lease_amount: int = None
-    rent_negotiable: bool = None
+    sale_amount: int = None
+    expected_rent: str
     lease_negotiable: bool = None
+    rent_negotiable: bool = None
+    sale_negotiable: bool = None
     year_of_lease: str = None
+    expected_deposit: str = None
+    current_worth: str = None
     monthly_maintenance: str = None
     maintenance_extra: str = None
-    available_from: str
+    floor_type: Optional[str] = ''
     preferred_tenant: List[str]
     is_furnishing: str = None
     is_parking: str = None
+    parking_extra: Optional[str] = ''
+    legal: Optional[str] = ''
+    available_from: str
     # description: str
-
-    # other fields resale
-    expected_price: str
-    price_negotiable: bool = None
-    under_loan: bool = None
-    # kitchen_type: str
 
 
 class AmenitiesDetails(BaseModel):
@@ -68,12 +67,22 @@ class AmenitiesDetails(BaseModel):
     bathroom: int
     balcony: str
     water_supply: str
-    gym: str
-    # non_veg_allowed: str
-    gated_security: str
+    water_sources: str
+    soil_type: str
+    terrain_type: str
+    farm: str
+    zoning: str
+    environmental: str
+    previous_crops: str
+    current_crops: str
+    electricity: str
     showing_agent: str
+    gym: str
+    gated_security: str
+    personal_number: int
     secondary_number: int
     available_amenities: List[str]
+    # non_veg_allowed: str
 
 
 class GalleryDetails(BaseModel):
@@ -165,6 +174,8 @@ class LandDetailsSchema(BaseModel):
     property_id: str
     type_of_property: str
     ad_category: str
+    property_type: str
+    BHK_type: str
     total_area: float
     length: float
     width: float

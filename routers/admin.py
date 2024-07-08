@@ -1,23 +1,22 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 import pymongo.errors
-from fastapi import APIRouter, HTTPException, Depends
+from bson import ObjectId
+from fastapi import APIRouter, HTTPException
 from starlette import status
 
 from database import Users, UserSubscriptionPlan, UserSubscription, PropertyDetail, Tenants
-from main import get_current_user_role
-from routers.role_checker import jwt_required
 
 router = APIRouter()
+allowed_roles = ["admin"]
 
 
-@jwt_required
 @router.get("/users")
-async def get_all_users(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
-    role, user_id = role_and_id
-
-    if role not in ['admin']:
-        raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
+async def get_all_users():
+    # role, user_id = role_and_id
+    #
+    # if role not in ['admin']:
+    #     raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
 
     try:
         projection = {
@@ -38,13 +37,12 @@ async def get_all_users(role_and_id: Tuple[str, str] = Depends(get_current_user_
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@jwt_required
 @router.get("/get_subscription_plans")
-async def get_all_subscription_plans(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
-    role, user_id = role_and_id
-
-    if role not in ['admin', 'vendor']:
-        raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
+async def get_all_subscription_plans():
+    # role, user_id = role_and_id
+    #
+    # if role not in ['admin', 'vendor']:
+    #     raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
 
     try:
         subscription_plans = UserSubscriptionPlan.find({}, {"_id": 0, "created_on": 0, "modified_on": 0})
@@ -63,14 +61,13 @@ async def get_all_subscription_plans(role_and_id: Tuple[str, str] = Depends(get_
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@jwt_required
 @router.get("/properties")
 async def get_properties_count(property_type: str, rental_type: Optional[str] = None,
-                               role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
-    role, user_id = role_and_id
-
-    if role not in ['admin', 'vendor']:
-        raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
+                               ):
+    # role, user_id = role_and_id
+    #
+    # if role not in ['admin', 'vendor']:
+    #     raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
 
     try:
         filter_conditions = {"property_type": property_type}
@@ -87,17 +84,16 @@ async def get_properties_count(property_type: str, rental_type: Optional[str] = 
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@jwt_required
 @router.get("/tenants")
-async def get_tenants_by_owner(owner_id: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
-    role, user_id = role_and_id
-
-    if role not in ['admin', 'Owner']:
-        raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
+async def get_tenants_by_owner(owner_id: str):
+    # role, user_id = role_and_id
+    #
+    # if role not in ['admin', 'Owner']:
+    #     raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
 
     try:
-        if role == ['admin', 'Owner'] and user_id == owner_id:
-            raise HTTPException(status_code=403, detail="You can only access your own tenants")
+        # if role == ['admin', 'Owner'] and user_id == owner_id:
+        #     raise HTTPException(status_code=403, detail="You can only access your own tenants")
 
         filter_conditions = {"owner_id": owner_id}
 
@@ -112,3 +108,164 @@ async def get_tenants_by_owner(owner_id: str, role_and_id: Tuple[str, str] = Dep
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+
+
+@router.delete("/delete_user")
+async def delete_property_detail(user_id: str):
+    # role, user_id = role_and_id
+    # if role not in ["admin"]:
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+    #                         detail="You are not authorized to perform this action")
+
+    try:
+        existing_user = Users.find_one({"user_id": user_id})
+        if existing_user:
+            Users.delete_one({"user_id": user_id})
+            return {"status": "User deleted successfully", "user_id": user_id}
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="User not found")
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except HTTPException as e:
+        raise e  # re-raise HTTPException with original status code and detail
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/get_user_subscription_plans")
+def get_user_subscription_plans(user_id: str):
+    try:
+        existing_subscription_plans = list(UserSubscription.find({"user_id": user_id}, {'_id': 0}))
+
+        if existing_subscription_plans:
+            user_subscriptions = []
+            for subscription_plan in existing_subscription_plans:
+                subscription_id = subscription_plan.get('subscription_id')
+                plan_details = UserSubscriptionPlan.find_one({"subscription_id": subscription_id}, {'_id': 0})
+                if plan_details:
+                    user_subscriptions.append(plan_details)
+                else:
+                    raise HTTPException(status_code=404,
+                                        detail=f"Subscription plan details not found for"
+                                               f" subscription_id: {subscription_id}")
+
+            return {"message": "success", "user_subscription": user_subscriptions}
+        else:
+            raise HTTPException(status_code=404, detail="No subscription plans found for the user")
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/all_user_subscription_plans")
+def get_all_user_subscription_plans():
+    try:
+        existing_subscription_plans = list(UserSubscription.find({}, {'_id': 0}))
+        if not existing_subscription_plans:
+            return {"message": "No subscription plans found"}
+
+        user_subscriptions_combined = []
+
+        plan_projection = {
+            '_id': 0, 'created_on': 0, 'modified_on': 0, 'description': 0,
+            'price': 0, 'limits': 0
+        }
+        user_projection = {
+            'user_id': 0, 'updated_at': 0, 'verification_code': 0,
+            'password': 0, 'verified': 0, 'role': 0
+        }
+
+        for subscription_plan in existing_subscription_plans:
+            subscription_id = subscription_plan.get('subscription_id')
+            user_id = subscription_plan.get('user_id')
+            plan_details = UserSubscriptionPlan.find_one({"subscription_id": subscription_id}, plan_projection)
+            user_details = Users.find_one({"_id": ObjectId(user_id)}, user_projection)
+
+            combined_details = {}
+            if plan_details:
+                combined_details.update(plan_details)
+            if user_details:
+                user_details["_id"] = str(user_details["_id"])
+                combined_details.update(user_details)
+            else:
+                combined_details.update(subscription_plan)
+
+            user_subscriptions_combined.append(combined_details)
+
+        return {
+            "message": "success",
+            "user_subscriptions": user_subscriptions_combined
+        }
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"MongoDB Error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.get("/all_counts_and_subscription_usage")
+async def get_counts_and_subscription_usage():
+    try:
+        # Getting the counts of different collections
+        user_count = Users.count_documents({})
+        subscription_plan_count = UserSubscriptionPlan.count_documents({})
+        property_count = PropertyDetail.count_documents({})
+
+        # Count property based on categories
+        property_rent_count = PropertyDetail.count_documents({"ad_category": "Rent"})
+        property_lease_count = PropertyDetail.count_documents({"ad_category": "Lease"})
+        total_property_count = PropertyDetail.count_documents({})
+
+        # Get subscription plans and their usage
+        subscription_plans = list(UserSubscriptionPlan.find({}))
+        subscription_usage_data = []
+
+        for subscription_plan in subscription_plans:
+            subscription_id = subscription_plan["subscription_id"]
+            user_count_for_plan = UserSubscription.count_documents({"subscription_id": subscription_id})
+
+            if user_count_for_plan > 0:
+                subscription_usage_data.append({
+                    "plan_type": subscription_plan["plan_type"],
+                    "user_count": user_count_for_plan
+                })
+
+        return {
+            "message": "success",
+            "data": {
+                "user_count": user_count,
+                "property_rent_count": property_rent_count,
+                "property_lease_count": property_lease_count,
+                "total_property_count": total_property_count,
+                "subscription_plan_count": subscription_plan_count,
+                "property_count": property_count,
+                "subscription_usage": subscription_usage_data,
+            }
+        }
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"MongoDB Error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+# @jwt_required
+@router.get("/get_all_properties")
+async def get_all_properties():
+    try:
+        details = list(PropertyDetail.find({}, {"_id": 0}))
+        rent_details = list(PropertyDetail.find({"ad_category": {"$in": ["Rent"]}}, {"_id": 0}))
+        lease_details = list(PropertyDetail.find({"ad_category": {"$in": ["Lease"]}}, {"_id": 0}))
+
+        return {"status": "success", "total_property_details": details, "rent_details": rent_details,
+                "lease_details": lease_details}
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

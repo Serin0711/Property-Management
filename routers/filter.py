@@ -9,7 +9,7 @@ from routers.role_checker import jwt_required
 
 router = APIRouter()
 
-allowed_roles = ['admin', 'vendor', 'Owner', 'customer']
+allowed_roles = ['admin', 'vendor', 'owner', 'customer']
 
 
 @jwt_required
@@ -50,7 +50,7 @@ async def get_apartment_details(city: str, property_type: str, rental_type: str,
 
 
 @router.get("/filter_details")
-async def get_all_details(type_of_property: str, city : str, property_type: Optional[str] = None,
+async def get_all_details(type_of_property: str, city: str, property_type: Optional[str] = None,
                           ad_category: Optional[str] = None):
     try:
         query = {}
@@ -101,14 +101,13 @@ async def count_user_properties(role_and_id: Tuple[str, str] = Depends(get_curre
             {"$group": {"_id": "$ad_category", "count": {"$sum": 1}}},
             {"$project": {"_id": 0, "ad_category": "$_id", "count": 1}}
         ]
-
         results = list(PropertyDetail.aggregate(pipeline))
 
         total_count = sum(item["count"] for item in results)
         response = {
             "status": "success",
             "total_count": total_count,
-            "data": results
+            "data": results,
         }
 
         return response

@@ -15,7 +15,7 @@ from schemas.propertySchemas import PropertyDetailsSchema, LocalityDetails, Rent
 
 router = APIRouter()
 
-allowed_roles = ['admin', 'vendor', 'customer', 'Owner']
+allowed_roles = ['admin', 'vendor', 'customer', 'owner']
 
 
 @jwt_required
@@ -72,7 +72,8 @@ async def add_property_detail_old(details: PropertyDetailsSchema,
             del data["property_id"]
             data["user_id"] = user_id
             PropertyDetail.update_one({"property_id": property_id}, {"$set": data})
-            return {"status": "property updated successfully", "property_id": property_id}
+            return {"status": "property updated successfully", "property_id": property_id,
+                    "ad_category": data['ad_category']}
 
         else:
             data = details.dict(exclude_unset=True)
@@ -83,7 +84,7 @@ async def add_property_detail_old(details: PropertyDetailsSchema,
             # Insert data into MongoDB
             PropertyDetail.insert_one(data)
 
-            return {"status": "success", "property_id": data["property_id"]}
+            return {"status": "success", "property_id": data["property_id"], "ad_category": data['ad_category']}
 
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -198,20 +199,16 @@ async def add_rental_detail(property_id: str, details: RentalDetails,
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@jwt_required
+# @jwt_required
 @router.get("/get_property_details")
-async def get_property_details(property_id: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
-    role, user_id = role_and_id
+async def get_property_details(property_id: str):
     try:
-        if role not in allowed_roles:
-            raise HTTPException(status_code=403, detail="You don't have permission to fetch house details")
+        details = PropertyDetail.find_one({"property_id": property_id})
 
-        details = PropertyDetail.find({"property_id": property_id})
-        formatted_details = []
+        if details is None:
+            raise HTTPException(status_code=404, detail="Property not found")
 
-        for document in details:
-            if 'property_type' in document:
-                formatted_details.append({k: v for k, v in document.items() if k != "_id"})
+        formatted_details = {k: v for k, v in details.items() if k != "_id"}
 
         return {"status": "success", "data": formatted_details}
     except errors.PyMongoError:
@@ -399,6 +396,7 @@ async def upload_photo(property_id: str, details: GalleryDetails,
             data = details.dict(exclude_unset=True)
             data["added_on"] = datetime.now()
             data["property_id"] = property_id
+            data["status"] = "finished"
             PropertyDetail.insert_one(data)
             return {"status": "Upload success"}
 
@@ -481,7 +479,8 @@ async def get_owned_property_details(role_and_id: Tuple[str, str] = Depends(get_
         formatted_details = []
         if details:
             for document in details:
-                formatted_details.append({k: v for k, v in document.items() if k != "_id"})
+                formatted_document = {k: v for k, v in document.items() if k != "_id" and v is not None and v != ""}
+                formatted_details.append(formatted_document)
 
             return {"status": "success", "property_count": details_count, "data": formatted_details}
         else:
@@ -501,7 +500,7 @@ async def delete_property_detail(property_id: str,
                             detail="You are not authorized to perform this action")
 
     try:
-        existing_property = PropertyDetail.find_one({"property_id": property_id})
+        existing_property = await PropertyDetail.find_one({"property_id": property_id})
         if existing_property:
             PropertyDetail.delete_one({"property_id": property_id})
             return {"status": "property deleted successfully", "property_id": property_id}

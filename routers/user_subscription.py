@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Tuple
 
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, status
 from pymongo import errors
 
@@ -24,18 +25,28 @@ async def post_user_subscription(subscription_id: str, role_and_id: Tuple[str, s
         existing_subscription = UserSubscription.find_one({"user_id": user_id})
         if existing_subscription:
             if existing_subscription["subscription_id"] == subscription_id:
-                return {"status": "success", "message": "User subscription already exist try to upgrade"}
-            UserSubscription.update_one(
-                {"owner_id": user_id},
-                {"$set": {
-                    "subscription_id": subscription_id,
-                    "updated_on": datetime.utcnow()
-                }}
-            )
+                return {"status": "success", "message": "User subscription already exists. Try to upgrade."}
+
             previous_subscription = existing_subscription.copy()
-            previous_subscription["_id"] = None
+            previous_subscription["_id"] = ObjectId()
             previous_subscription["updated_on"] = datetime.utcnow()
-            UserSubscriptionHistory.insert_one(previous_subscription)
+
+            try:
+                UserSubscriptionHistory.insert_one(previous_subscription)
+            except errors.PyMongoError as e:
+                raise HTTPException(status_code=500, detail=f"Failed to insert into subscription history: {str(e)}")
+
+            # Update the existing subscription
+            try:
+                UserSubscription.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "subscription_id": subscription_id,
+                        "updated_on": datetime.utcnow()
+                    }}
+                )
+            except errors.PyMongoError as e:
+                raise HTTPException(status_code=500, detail=f"Failed to update user subscription: {str(e)}")
 
             return {"status": "success", "message": "User subscription updated successfully"}
 
@@ -46,11 +57,17 @@ async def post_user_subscription(subscription_id: str, role_and_id: Tuple[str, s
                 "created_on": datetime.utcnow()
             }
 
-            UserSubscription.insert_one(new_subscription)
+            try:
+                UserSubscription.insert_one(new_subscription)
+            except errors.PyMongoError as e:
+                raise HTTPException(status_code=500, detail=f"Failed to add new user subscription: {str(e)}")
+
             return {"status": "success", "message": "User subscription added successfully"}
 
     except errors.PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Failed to handle user subscription: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @jwt_required

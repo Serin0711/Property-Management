@@ -14,9 +14,12 @@ db = client[settings.MONGO_INITDB_DATABASE]
 
 PropertyDetail = db.property_detail
 Users = db.users
-UserSubscriptionPlan = db.user_subscription_plan
+UserSubscriptionPlan = db.subscription_plans
 UserSubscription = db.user_subscription
 Tenants = db.tenants
 Owners = db.owners
 PropertyAccessLog = db.property_access_log
 UserSubscriptionHistory = db.user_subscription_history
+UsersProfile = db.users_profile
+UsersFeedback = db.users_feedback
+ServiceRequest = db.service_request

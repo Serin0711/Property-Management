@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, constr
 
 
@@ -8,6 +10,52 @@ class UserSchema(BaseModel):
     email: EmailStr
     password: constr(min_length=8)
     passwordConfirm: str
+    # phone_number: int
+    # mobile: int
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+
+
+class ProfileSchema(BaseModel):
+    user_id: str
+    first_name: str
+    last_name: str
+    phone_number: str
+    profile_picture: str
+    status: str
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+
+
+class UserAddressSchema(BaseModel):
+    user_id: str
+    address_1: str
+    address_2: str
+    city: str
+    state: str
+    postal_code: int
+    country: str
+    status: str
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+
+
+class UserFeedbackSchema(BaseModel):
+    email_id: str
+    feedback_type: str
+    message: str
+    status: str
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+
+
+class ServiceRequestSchema(BaseModel):
+    user_id: str
+    status: str
+    issue_type: str
+    description: str
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
 
 
 class SocialSignupSchema(BaseModel):

@@ -1,10 +1,12 @@
 import inspect
+import os
 import re
 from datetime import timedelta
 
 import pymongo.errors
 from fastapi import FastAPI, Depends, HTTPException, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.routing import APIRoute
 from fastapi_jwt_auth import AuthJWT
@@ -19,7 +21,8 @@ from schemas.userSchemas import Settings
 
 app = FastAPI()
 
-origins = [settings.CLIENT_ORIGIN, "http://localhost:3000", "http://localhost:8081", "http://localhost:3001"]
+origins = [settings.CLIENT_ORIGIN, "http://localhost:3000", "http://localhost:8081", "http://localhost:3001",
+           "http://localhost:3002"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,7 +117,7 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
 
         return {
             "access_token": access_token,
-            "name": db_user.get("name", ""),
+            "name": db_user.get("username", ""),
             "role": db_user.get("role", ""),
             "email": db_user.get("email", ""),
             "id": str(db_user["_id"]),

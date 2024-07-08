@@ -32,7 +32,7 @@ class RoleChecker:
 
 async def jwt_required(Authorize: AuthJWT = Depends()):
     try:
-        Authorize.jwt_required()
+        await Authorize.jwt_required()
     except InvalidHeaderError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except JWTError:

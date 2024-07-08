@@ -5,11 +5,10 @@ from pydantic import BaseModel
 
 class SubscriptionPlan(BaseModel):
     subscription_id: str
+    price: int
     limits: int
     plan_type: str
     description: str
-    created_on: datetime = datetime.now()
-    modified_on: datetime = datetime.now()
 
 
 class SubscriptionRequest(BaseModel):
