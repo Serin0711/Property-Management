@@ -230,7 +230,7 @@ async def users_signin(payload: UserSigninSchema, response: Response, Authorize:
 
 
 @router.post("/logout")
-async def user_logout(response: Response, Authorize: AuthJWT = Depends()):
+async def user_logout(request: Request, response: Response, Authorize: AuthJWT = Depends()):
     try:
         try:
             Authorize.jwt_required()
@@ -243,6 +243,8 @@ async def user_logout(response: Response, Authorize: AuthJWT = Depends()):
         user_id = Authorize.get_jwt_subject()
 
         if user_id:
+            access_token = request.cookies.get("access_token")
+            print("Access token from request cookies:", access_token)
             response.delete_cookie("access_token")
             response.delete_cookie("refresh_token")
             response.delete_cookie("logged_in")

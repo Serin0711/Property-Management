@@ -46,14 +46,14 @@ async def add_service_request(details: ServiceRequestSchema,
 # Get Service Request
 @jwt_required
 @router.get("/get_service_request/{request_id}")
-async def get_service_request(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+async def get_service_request(request_id: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
 
     if role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="You are not authorized to perform this action")
     try:
-        service_request = ServiceRequest.find_one({"user_id": user_id})
+        service_request = ServiceRequest.find_one({"request_id": request_id}, {"_id": 0})
         if not service_request:
             raise HTTPException(status_code=404, detail="Service request not found")
 

@@ -10,8 +10,8 @@ class UserSchema(BaseModel):
     email: EmailStr
     password: constr(min_length=8)
     passwordConfirm: str
-    # phone_number: int
-    # mobile: int
+    phone_number: int
+    mobile: int
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 
@@ -51,9 +51,18 @@ class UserFeedbackSchema(BaseModel):
 
 class ServiceRequestSchema(BaseModel):
     user_id: str
+    request_id: str
     status: str
     issue_type: str
     description: str
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+
+
+class UserFavoritesPropertySchema(BaseModel):
+    user_id: str
+    property_id: str
+    status: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 

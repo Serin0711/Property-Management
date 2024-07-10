@@ -500,11 +500,12 @@ async def delete_property_detail(property_id: str,
                             detail="You are not authorized to perform this action")
 
     try:
-        existing_property = await PropertyDetail.find_one({"property_id": property_id})
+        existing_property = PropertyDetail.find_one({"property_id": property_id})
         if existing_property:
             PropertyDetail.delete_one({"property_id": property_id})
             return {"status": "property deleted successfully", "property_id": property_id}
         else:
+            print("else")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Property not found")
 

@@ -23,3 +23,4 @@ UserSubscriptionHistory = db.user_subscription_history
 UsersProfile = db.users_profile
 UsersFeedback = db.users_feedback
 ServiceRequest = db.service_request
+UsersAddress = db.users_address
