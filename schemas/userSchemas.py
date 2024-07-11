@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, constr
 
@@ -20,8 +21,12 @@ class ProfileSchema(BaseModel):
     user_id: str
     first_name: str
     last_name: str
-    phone_number: str
-    profile_picture: str
+    # phone_number: str
+    nationality: str
+    profile_picture:  str
+    gender: str
+    date_of_birth: Optional[str]
+    age: Optional[int]
     status: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
@@ -61,7 +66,7 @@ class ServiceRequestSchema(BaseModel):
 
 class UserFavoritesPropertySchema(BaseModel):
     user_id: str
-    property_id: str
+    property_id: List[str]
     status: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()

@@ -2,9 +2,10 @@ import hashlib
 from datetime import datetime, timedelta
 from random import randbytes
 from typing import Annotated
-from bson import ObjectId
+
 import pymongo.errors
 import stripe
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Response, Depends, Body, Request
 
 import utils
@@ -118,10 +119,8 @@ async def signup_user(payload: UserSchema):
         )
     user_info = payload.dict()
     del user_info["passwordConfirm"]
-    user_info["user_id"] = str(ObjectId())
     user_info["verified"] = False
     user_info["status"] = "active"
-    user_info["created_at"] = datetime.utcnow()
     user_info["password"] = utils.hash_password(payload.password)
     result = Users.insert_one(user_info)
 
@@ -241,7 +240,8 @@ async def user_logout(request: Request, response: Response, Authorize: AuthJWT =
 
         # If the user is authenticated, proceed with logout
         user_id = Authorize.get_jwt_subject()
-
+        print(user_id, response)
+        print("Request cookies:", request.cookies)
         if user_id:
             access_token = request.cookies.get("access_token")
             print("Access token from request cookies:", access_token)

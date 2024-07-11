@@ -99,9 +99,9 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
             expires=ACCESS_TOKEN_EXPIRES_IN * 60,
             path="/",
             domain=None,
-            secure=True,
+            secure=False,
             httponly=True,
-            samesite="none",
+            samesite="lax",
         )
         response.set_cookie(
             key="refresh_token",
@@ -110,13 +110,15 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
             expires=REFRESH_TOKEN_EXPIRES_IN * 60,
             path="/",
             domain=None,
-            secure=True,
+            secure=False,
             httponly=True,
-            samesite="none",
+            samesite="lax",
         )
-
+        print("Access token set in response cookies:", access_token)
+        print("Refresh token set in response cookies:", refresh_token)
         return {
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "name": db_user.get("username", ""),
             "role": db_user.get("role", ""),
             "email": db_user.get("email", ""),
