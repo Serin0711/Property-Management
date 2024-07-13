@@ -13,6 +13,8 @@ class UserSchema(BaseModel):
     passwordConfirm: str
     phone_number: int
     mobile: int
+    added_by: Optional[str]
+    updated_by: Optional[str]
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 
@@ -102,10 +104,10 @@ class ResetPasswordSchema(BaseModel):
 
 
 class UpdatePasswordSchema(BaseModel):
-    email: EmailStr
-    oldPassword: str
-    password: constr(min_length=8)
-    passwordConfirm: str
+    user_id: str
+    old_password: str
+    new_password: constr(min_length=8)
+    password_confirm: str
 
 
 class Settings(BaseModel):

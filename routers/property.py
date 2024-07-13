@@ -389,6 +389,7 @@ async def upload_photo(property_id: str, details: GalleryDetails,
         if existing_property:
             data = details.dict(exclude_unset=True)
             data["modified_on"] = datetime.now()
+            data["status"] = "finished"
             PropertyDetail.update_one({"property_id": property_id}, {"$set": data})
             return {"status": "Update success"}
 
@@ -398,6 +399,7 @@ async def upload_photo(property_id: str, details: GalleryDetails,
             data["property_id"] = property_id
             data["status"] = "finished"
             PropertyDetail.insert_one(data)
+            # print(data)
             return {"status": "Upload success"}
 
     except pymongo.errors.PyMongoError as e:

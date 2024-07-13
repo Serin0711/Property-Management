@@ -16,7 +16,7 @@ import utils
 from config import settings
 from database import Users
 from routers import (apartment, house, filter, land, auth,
-                     subscription_plan, tenant, owner, property, user_subscription, admin)
+                     subscription_plan, tenant, owner, property, user_subscription, admin, user_profile, user_address)
 from schemas.userSchemas import Settings
 
 app = FastAPI()
@@ -43,7 +43,8 @@ try:
     app.include_router(user_subscription.router, prefix="/api/user_subscription", tags=["User subscription"])
     app.include_router(tenant.router, prefix="/api/tenant", tags=["Tenants"])
     app.include_router(owner.router, prefix="/api/owner", tags=["Owner"])
-
+    app.include_router(user_profile.router, prefix="/api/user_profile", tags=["user profile"])
+    app.include_router(user_address.router, prefix="/api/user_address", tags=["user address"])
 except Exception as e:
     print(f"Error while including routers: {e}")
 
@@ -114,8 +115,8 @@ async def login_for_access_token(response: Response, username: str = Form(...), 
             httponly=True,
             samesite="lax",
         )
-        print("Access token set in response cookies:", access_token)
-        print("Refresh token set in response cookies:", refresh_token)
+        # print("Access token set in response cookies:", access_token)
+        # print("Refresh token set in response cookies:", refresh_token)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,

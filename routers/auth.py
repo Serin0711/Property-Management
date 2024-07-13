@@ -367,47 +367,48 @@ async def reset_pass(payload: ResetPasswordSchema):
 
 @router.post("/updatePass")
 async def reset_pass(payload: UpdatePasswordSchema):
-    if len(payload.oldPassword.strip()) <= 0:
+    if len(payload.old_password.strip()) <= 0:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Old Password should not be empty"
         )
-    elif len(payload.password.strip()) <= 0:
+    elif len(payload.new_password.strip()) <= 0:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password should not be empty"
         )
-    elif payload.password != payload.passwordConfirm:
+    elif payload.new_password != payload.password_confirm:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Password doesn't match"
         )
-    existing = Users.find_one({"email": payload.email})
+    existing = Users.find_one({"_id": ObjectId(payload.user_id)})
     if existing:
         user_info = payload.dict()
 
-        if not utils.verify_password(payload.oldPassword, existing["password"]):
+        if not utils.verify_password(payload.old_password, existing["password"]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid old password"
             )
-        user_info["password"] = utils.hash_password(payload.password)
+        user_info["password"] = utils.hash_password(payload.new_password)
         try:
+            print("try", ObjectId(payload.user_id))
             Users.find_one_and_update(
-                {"email": payload.email},
+                {"_id": ObjectId(payload.user_id)},
                 {
                     "$set": {
-                        "password": utils.hash_password(payload.password),
+                        "password": utils.hash_password(payload.new_password),
                         "updated_at": datetime.utcnow(),
                     }
                 },
             )
+            return {
+                "status": "success",
+                "message": "Password updated successfully",
+            }
         except Exception as error:
             print(error)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="There was an error in reset password",
             )
-    return {
-        "status": "success",
-        "message": "Password updated successfully",
-    }
 
 
 @router.post("/signin_api")

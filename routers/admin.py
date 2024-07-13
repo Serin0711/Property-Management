@@ -210,20 +210,18 @@ def get_all_user_subscription_plans():
 @router.get("/all_counts_and_subscription_usage")
 async def get_counts_and_subscription_usage():
     try:
-        # Getting the counts of different collections
-        user_count = Users.count_documents({})
-        subscription_plan_count = UserSubscriptionPlan.count_documents({})
-        property_count = PropertyDetail.count_documents({})
-
-        # Count property based on categories
-        property_rent_count = PropertyDetail.count_documents({"ad_category": "Rent"})
-        property_lease_count = PropertyDetail.count_documents({"ad_category": "Lease"})
-        total_property_count = PropertyDetail.count_documents({})
-
-        # Get subscription plans and their usage
         subscription_plans = list(UserSubscriptionPlan.find({}))
         subscription_usage_data = []
-
+        pipeline = [
+            {"$group": {"_id": "$ad_category", "count": {"$sum": 1}}},
+            {"$project": {"_id": 0, "ad_category": "$_id", "count": 1}}
+        ]
+        results = list(PropertyDetail.aggregate(pipeline))
+        total_count = sum(item["count"] for item in results)
+        response = {
+            "total_count": total_count,
+            "data": results,
+        }
         for subscription_plan in subscription_plans:
             subscription_id = subscription_plan["subscription_id"]
             user_count_for_plan = UserSubscription.count_documents({"subscription_id": subscription_id})
@@ -236,15 +234,8 @@ async def get_counts_and_subscription_usage():
 
         return {
             "message": "success",
-            "data": {
-                "user_count": user_count,
-                "property_rent_count": property_rent_count,
-                "property_lease_count": property_lease_count,
-                "total_property_count": total_property_count,
-                "subscription_plan_count": subscription_plan_count,
-                "property_count": property_count,
-                "subscription_usage": subscription_usage_data,
-            }
+            "data": {"subscription_usage": subscription_usage_data},
+            "details": response
         }
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"MongoDB Error: {str(e)}")
@@ -259,9 +250,10 @@ async def get_all_properties():
         details = list(PropertyDetail.find({}, {"_id": 0}))
         rent_details = list(PropertyDetail.find({"ad_category": {"$in": ["Rent"]}}, {"_id": 0}))
         lease_details = list(PropertyDetail.find({"ad_category": {"$in": ["Lease"]}}, {"_id": 0}))
+        sale_details = list(PropertyDetail.find({"ad_category": {"$in": ["Sale"]}}, {"_id": 0}))
 
         return {"status": "success", "total_property_details": details, "rent_details": rent_details,
-                "lease_details": lease_details}
+                "lease_details": lease_details, "sale_details": sale_details}
 
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -18,21 +18,24 @@ allowed_roles = ['admin', 'vendor', 'customer', 'owner']
 
 @jwt_required
 @router.post("/add_profile_detail")
-async def add_profile_detail(details: ProfileSchema, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+async def add_profile_detail(userid: str, details: ProfileSchema, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="You are not authorized to perform this action")
 
     try:
-        existing_user = UsersProfile.find_one({"user_id": user_id})
+        print("try")
+        existing_user = UsersProfile.find_one({"user_id": userid})
+        print("try", existing_user)
         if existing_user:
             data = details.dict(exclude_unset=True)
-            del data["property_id"]
-            UsersProfile.update_one({"user_id": user_id}, {"$set": data})
+            # del data["property_id"]
+            UsersProfile.update_one({"user_id": userid}, {"$set": data})
             return {"status": "success", "data": {"user_id": user_id, "message": "Profile updated successfully"}}
 
         else:
+            print("else")
             data = details.dict(exclude_unset=True)
             UsersProfile.insert_one(data)
             return {"status": "success", "data": data}
@@ -47,13 +50,13 @@ async def add_profile_detail(details: ProfileSchema, role_and_id: Tuple[str, str
 
 @jwt_required
 @router.get("/get_profile/{user_id}")
-async def get_user_profile(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+async def get_user_profile(userid: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="You are not authorized to perform this action")
     try:
-        profile = UsersProfile.find_one({"user_id": user_id})
+        profile = UsersProfile.find_one({"user_id": userid})
         if profile:
             formatted_details = {k: v for k, v in profile.items() if k != "_id"}
             return {"status": "success", "data": formatted_details}

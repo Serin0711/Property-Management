@@ -68,8 +68,11 @@ async def get_all_details(type_of_property: str, city: str, property_type: Optio
         details = []
 
         for document in Property_Detail:
-            document.pop("_id", None)
-            details.append(document)
+            status_details = document.get("status")
+            if status_details:
+                document.pop("_id", None)
+                cleaned_document = {k: v for k, v in document.items() if v != ""}
+                details.append(cleaned_document)
 
         if not details:
             raise HTTPException(
