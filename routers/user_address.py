@@ -43,7 +43,7 @@ async def add_address(userid: str, details: UserAddressSchema,
 
 
 @jwt_required
-@router.get("/get_address/{address_id}")
+@router.get("/get_address")
 async def get_address(userid: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
 
@@ -55,12 +55,9 @@ async def get_address(userid: str, role_and_id: Tuple[str, str] = Depends(get_cu
         if not address:
             raise HTTPException(status_code=404, detail="Address not found")
 
-        address.pop("_id", None)
         return {"status": "success", "data": address}
 
     except errors.PyMongoError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 

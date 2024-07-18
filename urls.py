@@ -16,7 +16,7 @@ import utils
 from config import settings
 from database import Users
 from routers import (apartment, house, filter, land, auth,
-                     subscription_plan, tenant, owner, property, user_subscription, admin, user_profile, user_address)
+                     subscription_plan, tenant, owner, property, user_subscription, admin, user_profile, user_address, user_report)
 from schemas.userSchemas import Settings
 
 app = FastAPI()
@@ -43,8 +43,9 @@ try:
     app.include_router(user_subscription.router, prefix="/api/user_subscription", tags=["User subscription"])
     app.include_router(tenant.router, prefix="/api/tenant", tags=["Tenants"])
     app.include_router(owner.router, prefix="/api/owner", tags=["Owner"])
-    app.include_router(user_profile.router, prefix="/api/user_profile", tags=["user profile"])
-    app.include_router(user_address.router, prefix="/api/user_address", tags=["user address"])
+    app.include_router(user_profile.router, prefix="/api/user_profile", tags=["User Profile"])
+    app.include_router(user_address.router, prefix="/api/user_address", tags=["User Address"])
+    app.include_router(user_report.router, prefix="/api/user_report", tags=["User Report"])
 except Exception as e:
     print(f"Error while including routers: {e}")
 
@@ -58,7 +59,7 @@ ACCESS_TOKEN_EXPIRES_IN = 120  # in minutes
 REFRESH_TOKEN_EXPIRES_IN = 240
 
 
-@app.post("/login")
+@app.post("/api/login")
 async def login_for_access_token(response: Response, username: str = Form(...), password: str = Form(...),
                                  Authorize: AuthJWT = Depends()):
     try:

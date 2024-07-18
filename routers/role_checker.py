@@ -37,3 +37,19 @@ async def jwt_required(Authorize: AuthJWT = Depends()):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="JWT token is missing or invalid")
+
+
+def format_currency(value):
+    try:
+        value = int(value)
+    except (ValueError, TypeError):
+        return value
+
+    if value >= 10 ** 7:
+        return f"{value / 10 ** 7:.1f}Cr" if value % 10 ** 7 != 0 else f"{value // 10 ** 7}Cr"
+    elif value >= 10 ** 5:
+        return f"{value / 10 ** 5:.1f}Lac" if value % 10 ** 5 != 0 else f"{value // 10 ** 5}Lac"
+    elif value >= 10 ** 3:
+        return f"{value / 10 ** 3:.1f}k" if value % 10 ** 3 != 0 else f"{value // 10 ** 3}k"
+    else:
+        return str(value)

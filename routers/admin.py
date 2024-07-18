@@ -13,22 +13,18 @@ allowed_roles = ["admin"]
 
 @router.get("/users")
 async def get_all_users():
-    # role, user_id = role_and_id
-    #
-    # if role not in ['admin']:
-    #     raise HTTPException(status_code=403, detail="You don't have permission to access this endpoint")
-
     try:
         projection = {
-            "_id": 0,
+            "user_id": 0,
             "created_at": 0,
             "updated_at": 0,
             "verification_code": 0,
             "password": 0
         }
         users_cursor = Users.find({}, projection)
-        users_list = list(users_cursor)
-
+        users_list = [user for user in users_cursor]
+        for user in users_list:
+            user["_id"] = str(user["_id"])
         user_count = Users.count_documents({})
 
         return {"status": "success", "user_count": user_count, "users": users_list}
@@ -211,31 +207,35 @@ def get_all_user_subscription_plans():
 async def get_counts_and_subscription_usage():
     try:
         subscription_plans = list(UserSubscriptionPlan.find({}))
-        subscription_usage_data = []
+        total_user = Users.count_documents({})
+        subscription_plans_count = UserSubscriptionPlan.count_documents({})
+
         pipeline = [
             {"$group": {"_id": "$ad_category", "count": {"$sum": 1}}},
             {"$project": {"_id": 0, "ad_category": "$_id", "count": 1}}
         ]
-        results = list(PropertyDetail.aggregate(pipeline))
-        total_count = sum(item["count"] for item in results)
-        response = {
-            "total_count": total_count,
-            "data": results,
-        }
-        for subscription_plan in subscription_plans:
-            subscription_id = subscription_plan["subscription_id"]
+        property_details = list(PropertyDetail.aggregate(pipeline))
+        total_count = sum(item["count"] for item in property_details)
+
+        property_details.extend([
+            {"count": total_user, "ad_category": "Total Users"},
+            {"count": total_count, "ad_category": "Total Properties"},
+            {"count": subscription_plans_count, "ad_category": "Subscription Plans"}
+        ])
+        subscription_usage_data = []
+        for plan in subscription_plans:
+            subscription_id = plan["subscription_id"]
             user_count_for_plan = UserSubscription.count_documents({"subscription_id": subscription_id})
 
             if user_count_for_plan > 0:
                 subscription_usage_data.append({
-                    "plan_type": subscription_plan["plan_type"],
+                    "plan_type": plan["plan_type"],
                     "user_count": user_count_for_plan
                 })
-
         return {
             "message": "success",
             "data": {"subscription_usage": subscription_usage_data},
-            "details": response
+            "details": property_details,
         }
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"MongoDB Error: {str(e)}")

@@ -11,8 +11,8 @@ class UserSchema(BaseModel):
     email: EmailStr
     password: constr(min_length=8)
     passwordConfirm: str
-    phone_number: int
-    mobile: int
+    # phone_number: int
+    # mobile: int
     added_by: Optional[str]
     updated_by: Optional[str]
     created_at: datetime = datetime.now()
@@ -25,7 +25,7 @@ class ProfileSchema(BaseModel):
     last_name: str
     # phone_number: str
     nationality: str
-    profile_picture:  str
+    profile_picture: str
     gender: str
     date_of_birth: Optional[str]
     age: Optional[int]
@@ -81,6 +81,14 @@ class SocialSignupSchema(BaseModel):
     email: EmailStr
     username: str | None = None
     id: str
+
+
+class PropertyMisuseReport(BaseModel):
+    property_id: str
+    user_id: str
+    report_reason: str
+    description: Optional[str] = None
+    report_date: datetime = datetime.now()
 
 
 class UserSigninSchema(BaseModel):

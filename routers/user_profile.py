@@ -18,7 +18,8 @@ allowed_roles = ['admin', 'vendor', 'customer', 'owner']
 
 @jwt_required
 @router.post("/add_profile_detail")
-async def add_profile_detail(userid: str, details: ProfileSchema, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+async def add_profile_detail(userid: str, details: ProfileSchema,
+                             role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -48,8 +49,7 @@ async def add_profile_detail(userid: str, details: ProfileSchema, role_and_id: T
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@jwt_required
-@router.get("/get_profile/{user_id}")
+@router.get("/get_profile")
 async def get_user_profile(userid: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
@@ -61,11 +61,9 @@ async def get_user_profile(userid: str, role_and_id: Tuple[str, str] = Depends(g
             formatted_details = {k: v for k, v in profile.items() if k != "_id"}
             return {"status": "success", "data": formatted_details}
         else:
-            return {"status": "error", "data": "Profile not found"}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile Not Found")
 
     except errors.PyMongoError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 

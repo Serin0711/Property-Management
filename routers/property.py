@@ -9,7 +9,7 @@ from starlette import status
 
 from database import PropertyDetail, PropertyAccessLog, UserSubscription, UserSubscriptionPlan
 from main import get_current_user_role
-from routers.role_checker import jwt_required
+from routers.role_checker import jwt_required, format_currency
 from schemas.propertySchemas import PropertyDetailsSchema, LocalityDetails, RentalDetails, AmenitiesDetails, \
     GalleryDetails, HomeDetailsSchema
 
@@ -208,9 +208,16 @@ async def get_property_details(property_id: str):
         if details is None:
             raise HTTPException(status_code=404, detail="Property not found")
 
-        formatted_details = {k: v for k, v in details.items() if k != "_id"}
+        formatted_details = {k: (
+            format_currency(v) if k in ['expected_deposit', 'expected_lease_amount', 'expected_rent', 'sale_amount',
+                                        'current_worth'] else v)
+            for k, v in details.items() if k != "_id"}
+
+        for key in ['lease_negotiable', 'sale_negotiable', 'rent_negotiable']:
+            formatted_details[key] = "negotiable" if details.get(key) else "non-negotiable"
 
         return {"status": "success", "data": formatted_details}
+
     except errors.PyMongoError:
         raise HTTPException(status_code=500, detail="Failed to fetch house details")
     except Exception as e:
@@ -514,6 +521,6 @@ async def delete_property_detail(property_id: str,
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except HTTPException as e:
-        raise e  # re-raise HTTPException with original status code and detail
+        raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

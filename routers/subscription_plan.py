@@ -65,7 +65,7 @@ def unsubscribe(subscription_id: str, role_and_id: Tuple[str, str] = Depends(get
 
 
 @jwt_required
-@router.patch("/update_subscription_plan")
+@router.patch("/update_subscription_plan/{subscription_id}")
 def update_subscription(subscription_id: str, payload: SubscriptionPlan,
                         role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
@@ -99,6 +99,7 @@ def get_subscription_plans(role_and_id: Tuple[str, str] = Depends(get_current_us
     try:
         subscription_plans = list(UserSubscriptionPlan.find({}, {'_id': 0}))
         return {"message": "success", "subscription_plans": subscription_plans}
+
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     except Exception as e:

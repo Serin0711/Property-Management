@@ -43,7 +43,7 @@ class RentalDetails(BaseModel):
     # rental_type: str
     expected_lease_amount: int = None
     sale_amount: int = None
-    expected_rent: str
+    expected_rent: int
     lease_negotiable: bool = None
     rent_negotiable: bool = None
     sale_negotiable: bool = None

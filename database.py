@@ -25,3 +25,4 @@ UsersFeedback = db.users_feedback
 ServiceRequest = db.service_request
 UsersAddress = db.users_address
 UsersFavorites = db.users_favorites_properties
+PropertyReports = db.property_reports
