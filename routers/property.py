@@ -514,7 +514,7 @@ async def delete_property_detail(property_id: str,
             PropertyDetail.delete_one({"property_id": property_id})
             return {"status": "property deleted successfully", "property_id": property_id}
         else:
-            print("else")
+            # print("else")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Property not found")
 

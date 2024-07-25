@@ -1,11 +1,13 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import pymongo.errors
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from starlette import status
 
-from database import Users, UserSubscriptionPlan, UserSubscription, PropertyDetail, Tenants
+from database import Users, UserSubscriptionPlan, UserSubscription, PropertyDetail, Tenants, PropertyReports
+from main import get_current_user_role
+from routers.role_checker import jwt_required
 
 router = APIRouter()
 allowed_roles = ["admin"]
@@ -222,25 +224,29 @@ async def get_counts_and_subscription_usage():
             {"count": total_count, "ad_category": "Total Properties"},
             {"count": subscription_plans_count, "ad_category": "Subscription Plans"}
         ])
+
         subscription_usage_data = []
         for plan in subscription_plans:
             subscription_id = plan["subscription_id"]
             user_count_for_plan = UserSubscription.count_documents({"subscription_id": subscription_id})
-
             if user_count_for_plan > 0:
                 subscription_usage_data.append({
                     "plan_type": plan["plan_type"],
                     "user_count": user_count_for_plan
                 })
+
+        response_data = {"details": property_details}
+        if subscription_usage_data:
+            response_data["data"] = {"subscription_usage": subscription_usage_data}
+
         return {
             "message": "success",
-            "data": {"subscription_usage": subscription_usage_data},
-            "details": property_details,
+            **response_data
         }
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"MongoDB Error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # @jwt_required
@@ -259,5 +265,47 @@ async def get_all_properties():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@jwt_required
+@router.get("/report_details")
+async def get_property_reports(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+    role, user_id = role_and_id
+    if role not in ['admin', 'owner']:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="You are not authorized to perform this action")
+
+    try:
+        # Fetch all property reports
+        reports_cursor = PropertyReports.find({}, {"_id": 0})
+        reports = list(reports_cursor)
+        if not reports:
+            raise HTTPException(status_code=404, detail="No property reports found")
+
+        # Fetch user details for each report
+        for report in reports:
+            report_user_id = report.get("user_id")
+            if not report_user_id:
+                raise HTTPException(status_code=404, detail="User ID not found in the property report")
+
+            # Fetch the user's details
+            user_cursor = Users.find({"_id": ObjectId(report_user_id)}, {"_id": 0, "username": 1})
+            user_list = list(user_cursor)
+            if not user_list:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Assuming there should be only one user, get the first one
+            user_details = user_list[0]
+            report["username"] = user_details["username"]
+
+        return {
+            "message": "Property reports retrieved successfully",
+            "data": reports
+        }
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

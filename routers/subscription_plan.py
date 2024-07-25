@@ -22,8 +22,11 @@ def subscribe(payload: SubscriptionPlan, role_and_id: Tuple[str, str] = Depends(
         raise HTTPException(status_code=403, detail="You don't have permission to add subscriptions")
 
     try:
-        existing_subscription = UserSubscriptionPlan.find_one({"subscription_id": payload.subscription_id})
+        existing_plan_type = UserSubscriptionPlan.find_one({"plan_type": payload.plan_type})
+        if existing_plan_type:
+            raise HTTPException(status_code=400, detail="Plan name already exists")
 
+        existing_subscription = UserSubscriptionPlan.find_one({"subscription_id": payload.subscription_id})
         if existing_subscription:
             raise HTTPException(status_code=400, detail="Subscription already exists")
 
@@ -36,8 +39,8 @@ def subscribe(payload: SubscriptionPlan, role_and_id: Tuple[str, str] = Depends(
         return {"message": "Subscription added successfully"}
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
 
 
 @jwt_required
@@ -50,7 +53,7 @@ def unsubscribe(subscription_id: str, role_and_id: Tuple[str, str] = Depends(get
 
     try:
         existing_subscription = UserSubscriptionPlan.find_one({"subscription_id": subscription_id})
-        print(existing_subscription)
+        # print(existing_subscription)
         if not existing_subscription:
             raise HTTPException(status_code=404, detail="Subscription not found")
 
@@ -74,12 +77,16 @@ def update_subscription(subscription_id: str, payload: SubscriptionPlan,
         raise HTTPException(status_code=403, detail="You don't have permission to update subscriptions")
 
     try:
+        existing_plan_type = UserSubscriptionPlan.find_one({"plan_type": payload.plan_type})
+        if existing_plan_type:
+            raise HTTPException(status_code=400, detail="Plan name already exists")
+
         existing_subscription = UserSubscriptionPlan.find_one({"subscription_id": subscription_id})
 
         if not existing_subscription:
             raise HTTPException(status_code=404, detail="Subscription not found")
 
-        update_payload = payload.dict(exclude_unset=True, exclude={"subscription_id", "plan_type", "created_on"})
+        update_payload = payload.dict(exclude_unset=True, exclude={"subscription_id", "created_on"})
         UserSubscriptionPlan.update_one({"subscription_id": subscription_id}, {"$set": update_payload})
 
         return {"message": "Subscription details updated successfully"}

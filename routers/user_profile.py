@@ -18,7 +18,7 @@ allowed_roles = ['admin', 'vendor', 'customer', 'owner']
 
 @jwt_required
 @router.post("/add_profile_detail")
-async def add_profile_detail(userid: str, details: ProfileSchema,
+async def add_profile_detail(details: ProfileSchema,
                              role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
@@ -27,12 +27,12 @@ async def add_profile_detail(userid: str, details: ProfileSchema,
 
     try:
         print("try")
-        existing_user = UsersProfile.find_one({"user_id": userid})
+        existing_user = UsersProfile.find_one({"user_id": details.user_id})
         print("try", existing_user)
         if existing_user:
             data = details.dict(exclude_unset=True)
             # del data["property_id"]
-            UsersProfile.update_one({"user_id": userid}, {"$set": data})
+            UsersProfile.update_one({"user_id": details.user_id}, {"$set": data})
             return {"status": "success", "data": {"user_id": user_id, "message": "Profile updated successfully"}}
 
         else:

@@ -24,7 +24,7 @@ class PropertyDetailsSchema(BaseModel):
     total_floor: Optional[str] = ''
     property_age: str
     facing: str
-    total_area: Optional[str] = ''
+    total_area: int
     # other Fields in resale
     apartment_name: str
     # ownership_type: str
