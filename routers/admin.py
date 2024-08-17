@@ -1,10 +1,16 @@
+import base64
+import io
 from typing import Optional, Tuple
 
 import pymongo.errors
+from PIL import Image
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, Query
+from fastapi import UploadFile, HTTPException
+from fastapi.responses import JSONResponse
 from starlette import status
 
+# from database import OriginalImages
 from database import Users, UserSubscriptionPlan, UserSubscription, PropertyDetail, Tenants, PropertyReports
 from main import get_current_user_role
 from routers.role_checker import jwt_required
@@ -24,7 +30,7 @@ async def get_all_users():
             "password": 0
         }
         users_cursor = Users.find({}, projection)
-        users_list = [user for user in users_cursor]
+        users_list = [user for user in users_cursor if user.get("role") != "admin"]
         for user in users_list:
             user["_id"] = str(user["_id"])
         user_count = Users.count_documents({})
@@ -116,10 +122,14 @@ async def delete_property_detail(user_id: str):
     #                         detail="You are not authorized to perform this action")
 
     try:
-        existing_user = Users.find_one({"user_id": user_id})
+        existing_user = Users.find_one({"_id": ObjectId(user_id)})
+        print(existing_user)
         if existing_user:
-            Users.delete_one({"user_id": user_id})
-            return {"status": "User deleted successfully", "user_id": user_id}
+            try:
+                Users.delete_one({"_id": ObjectId(user_id)})
+                return {"status": "User deleted successfully", "user_id": user_id}
+            except HTTPException as e:
+                raise e
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="User not found")
@@ -209,7 +219,7 @@ def get_all_user_subscription_plans():
 async def get_counts_and_subscription_usage():
     try:
         subscription_plans = list(UserSubscriptionPlan.find({}))
-        total_user = Users.count_documents({})
+        total_user = Users.count_documents({"role": {"$ne": "admin"}})
         subscription_plans_count = UserSubscriptionPlan.count_documents({})
 
         pipeline = [
@@ -250,16 +260,38 @@ async def get_counts_and_subscription_usage():
 
 
 # @jwt_required
-@router.get("/get_all_properties")
-async def get_all_properties():
-    try:
-        details = list(PropertyDetail.find({}, {"_id": 0}))
-        rent_details = list(PropertyDetail.find({"ad_category": {"$in": ["Rent"]}}, {"_id": 0}))
-        lease_details = list(PropertyDetail.find({"ad_category": {"$in": ["Lease"]}}, {"_id": 0}))
-        sale_details = list(PropertyDetail.find({"ad_category": {"$in": ["Sale"]}}, {"_id": 0}))
+PAGE_SIZE = 10
 
-        return {"status": "success", "total_property_details": details, "rent_details": rent_details,
-                "lease_details": lease_details, "sale_details": sale_details}
+
+@router.get("/get_all_properties")
+async def get_all_properties(page: int = Query(1, ge=1)):
+    skip = (page - 1) * PAGE_SIZE
+
+    try:
+        # Retrieve the total number of documents for pagination
+        total_count = PropertyDetail.count_documents({})
+
+        # Fetch the properties with pagination
+        details = list(PropertyDetail.find({}, {"_id": 0, "upload_images": 0}).skip(skip).limit(PAGE_SIZE))
+        rent_details = list(
+            PropertyDetail.find({"ad_category": {"$in": ["Rent"]}}, {"_id": 0, "upload_images": 0}).skip(skip).limit(
+                PAGE_SIZE))
+        lease_details = list(
+            PropertyDetail.find({"ad_category": {"$in": ["Lease"]}}, {"_id": 0, "upload_images": 0}).skip(skip).limit(
+                PAGE_SIZE))
+        sale_details = list(
+            PropertyDetail.find({"ad_category": {"$in": ["Sale"]}}, {"_id": 0, "upload_images": 0}).skip(skip).limit(
+                PAGE_SIZE))
+
+        return {
+            "status": "success",
+            "page": page,
+            "total_pages": (total_count + PAGE_SIZE - 1) // PAGE_SIZE,
+            "total_property_details": details,
+            "rent_details": rent_details,
+            "lease_details": lease_details,
+            "sale_details": sale_details
+        }
 
     except pymongo.errors.PyMongoError as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -11,8 +11,8 @@ class UserSchema(BaseModel):
     email: EmailStr
     password: constr(min_length=8)
     passwordConfirm: str
-    # phone_number: int
-    # mobile: int
+    phone_number: int
+    mobile: int
     added_by: Optional[str]
     updated_by: Optional[str]
     created_at: datetime = datetime.now()

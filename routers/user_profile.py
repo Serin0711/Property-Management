@@ -45,11 +45,9 @@ async def add_profile_detail(details: ProfileSchema,
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except HTTPException as e:
         raise e
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@router.get("/get_profile")
+@router.get("/get_profile/{userid}")
 async def get_user_profile(userid: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
@@ -68,7 +66,7 @@ async def get_user_profile(userid: str, role_and_id: Tuple[str, str] = Depends(g
 
 
 @jwt_required
-@router.put("/profile/{user_id}")
+@router.put("/update_profile/{user_id}")
 async def update_profile(updated_profile: ProfileSchema,
                          role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id

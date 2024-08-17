@@ -25,3 +25,6 @@ striprtf==0.0.26
 uvicorn==0.22.0
 websockets==11.0.3
 
+
+Pillow~=10.1.0
+requests~=2.31.0

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     STRIPE_API_KEY: str
     STRIPE_SECRET_KEY: str
+    PAGE_SIZE = int
+    OPENCAGE_API_KEY = str
 
     class Config:
         env_file = "./.env"

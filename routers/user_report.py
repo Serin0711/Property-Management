@@ -83,7 +83,7 @@ async def delete_property_report(report_id: str, role_and_id: Tuple[str, str] = 
 
 @jwt_required
 @router.get("/property_reports")
-async def get_property_report(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+async def get_property_report_details(role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
     role, user_id = role_and_id
     if role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,

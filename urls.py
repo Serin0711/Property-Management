@@ -1,13 +1,12 @@
 import inspect
-import os
 import re
 from datetime import timedelta
-
+from pydantic import SecretStr
 import pymongo.errors
-from fastapi import FastAPI, Depends, HTTPException, Form, Response
+from fastapi import FastAPI, Depends, HTTPException, Form, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi_jwt_auth import AuthJWT
 from starlette import status
@@ -16,7 +15,8 @@ import utils
 from config import settings
 from database import Users
 from routers import (apartment, house, filter, land, auth,
-                     subscription_plan, tenant, owner, property, user_subscription, admin, user_profile, user_address, user_report)
+                     subscription_plan, tenant, owner, property, user_subscription, admin, user_profile, user_address,
+                     user_report)
 from schemas.userSchemas import Settings
 
 app = FastAPI()
@@ -60,7 +60,7 @@ REFRESH_TOKEN_EXPIRES_IN = 240
 
 
 @app.post("/api/login")
-async def login_for_access_token(response: Response, username: str = Form(...), password: str = Form(...),
+async def login_for_access_token(response: Response, username: str = Form(...), password: SecretStr = Form(...),
                                  Authorize: AuthJWT = Depends()):
     try:
         db_user = Users.find_one({"email": username})

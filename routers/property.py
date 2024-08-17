@@ -2,16 +2,19 @@ from datetime import datetime
 from typing import Tuple
 
 import pymongo
+import requests
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends
 from pymongo import errors
 from starlette import status
 
+from config import settings
+from database import Geolocations, Users
 from database import PropertyDetail, PropertyAccessLog, UserSubscription, UserSubscriptionPlan
 from main import get_current_user_role
 from routers.role_checker import jwt_required, format_currency
 from schemas.propertySchemas import PropertyDetailsSchema, LocalityDetails, RentalDetails, AmenitiesDetails, \
-    GalleryDetails, HomeDetailsSchema
+    GalleryDetails, HomeDetailsSchema, GeoLocation, PropertyUpdateSchema
 
 router = APIRouter()
 
@@ -208,13 +211,15 @@ async def get_property_details(property_id: str):
         if details is None:
             raise HTTPException(status_code=404, detail="Property not found")
 
-        formatted_details = {k: (
-            format_currency(v) if k in ['expected_deposit', 'expected_lease_amount', 'expected_rent', 'sale_amount',
-                                        'current_worth'] else v)
-            for k, v in details.items() if k != "_id"}
+        formatted_details = {
+            k: (format_currency(v) if k in ['expected_deposit', 'expected_lease_amount', 'expected_rent', 'sale_amount',
+                                            'current_worth'] else v) for k, v in details.items() if
+            k != "_id" and v not in [None, "", [], {}]
+        }
 
         for key in ['lease_negotiable', 'sale_negotiable', 'rent_negotiable']:
-            formatted_details[key] = "negotiable" if details.get(key) else "non-negotiable"
+            if key in details:
+                formatted_details[key] = "negotiable" if details[key] else "non-negotiable"
 
         return {"status": "success", "data": formatted_details}
 
@@ -524,3 +529,136 @@ async def delete_property_detail(property_id: str,
         raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+def get_coordinates(address):
+    base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": address,
+        "key": "bc4f9c0af6dd4e61b1d3f32371ee1eb5"
+    }
+    response = requests.get(base_url, params=params)
+    data = response.json()
+
+    if data['status'] == 'OK':
+        geometry = data['results'][0]['geometry']['location']
+        return geometry['lat'], geometry['lng']
+    else:
+        return None, None
+
+
+async def get_geolocation_by_address(geo: GeoLocation, api_key: str):
+    address = f"{geo.street_name}, {geo.city}, {geo.state}"
+    url = f"https://api.opencagedata.com/geocode/v1/json?q={address}&key={api_key}"
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+
+        if response.status_code != 200 or not data['results']:
+            raise HTTPException(status_code=404, detail="Address not found")
+
+        result = data['results'][0]['geometry']
+        geo.latitude = result['lat']
+        geo.longitude = result['lng']
+        geo.geo_type = "address"
+        geo.user_update = "User_update"
+        geo.system_update = 'None'
+        return geo
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching geolocation data: {str(e)}")
+
+
+async def get_geolocation_by_lat_lng(geo: GeoLocation, api_key: str):
+    url = f"https://api.opencagedata.com/geocode/v1/json?q={geo.latitude}+{geo.longitude}&key={api_key}"
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+
+        if response.status_code != 200 or not data['results']:
+            raise HTTPException(status_code=404, detail="Coordinates not found")
+
+        result = data['results'][0]['components']
+        geo.street_name = result.get('road', '')
+        geo.city = result.get('city', result.get('town', result.get('village', '')))
+        geo.state = result.get('state', '')
+        geo.geo_type = "lat_long"
+        geo.system_update = "system_update"
+        geo.user_update = 'None'
+        return geo
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching geolocation data: {str(e)}")
+
+
+@router.post("/geolocation/", response_model=GeoLocation)
+async def get_geolocation(geo: GeoLocation):
+    opencage_api_key = settings.OPENCAGE_API_KEY
+    print(opencage_api_key)
+    try:
+        if geo.street_name and geo.city and geo.state:
+            geo = await get_geolocation_by_address(geo, opencage_api_key)
+        elif geo.latitude and geo.longitude:
+            geo = await get_geolocation_by_lat_lng(geo, opencage_api_key)
+        else:
+            raise HTTPException(status_code=400,
+                                detail="Invalid input. Provide either a complete address or latitude and longitude.")
+
+        try:
+            Geolocations.insert_one(geo.dict())
+        except pymongo.errors.PyMongoError as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+        return geo
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@router.patch("/update_property_details")
+async def update_house_details(property_id: str, updated_details: PropertyUpdateSchema,
+                               role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+    role, user_id = role_and_id
+
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="You don't have permission to update house details")
+
+    existing_details = PropertyDetail.find_one({"property_id": property_id})
+    if not existing_details:
+        raise HTTPException(status_code=404, detail="Property details not found.")
+
+    data_dict = updated_details.dict(exclude_unset=True)
+    data_dict["modified_by"] = user_id
+    data_dict["modified_on"] = datetime.utcnow()
+    try:
+        # Perform the update using update_one
+        updated_data = PropertyDetail.update_one({"property_id": property_id}, {"$set": data_dict})
+        modified_count = updated_data.modified_count
+
+        return {"status": "success", "message": f"{modified_count} document(s) updated."}
+    except pymongo.errors.PyMongoError:
+        raise HTTPException(status_code=500, detail="Failed to update property details")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@jwt_required
+@router.get("/get_owner_details/{owner_id}")
+async def get_owner_details(owner_id: str, role_and_id: Tuple[str, str] = Depends(get_current_user_role)):
+    role, user_id = role_and_id
+
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="You don't have permission to access owner details")
+
+    try:
+        owner = Users.find_one({"_id": ObjectId(owner_id)})
+        if not owner:
+            raise HTTPException(status_code=404, detail="Owner not found")
+        if "_id" in owner:
+            del owner["_id"]
+
+        return {"status": "success", "data": owner}
+
+    except pymongo.errors.PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")

@@ -89,7 +89,7 @@ def update_subscription(subscription_id: str, payload: SubscriptionPlan,
         update_payload = payload.dict(exclude_unset=True, exclude={"subscription_id", "created_on"})
         UserSubscriptionPlan.update_one({"subscription_id": subscription_id}, {"$set": update_payload})
 
-        return {"message": "Subscription details updated successfully"}
+        return {"message": "Subscription details updated successfully", "fwduywaf": update_payload}
 
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
